@@ -1,5 +1,5 @@
 """
-Ce script génère des tirages aléatoires pour l'EuroMillions en utilisant des sources d'entropie variées.
+This script generates random draws for EuroMillions using various entropy sources.
 """
 
 import os
@@ -29,7 +29,7 @@ def _fetch_weather_api(params):
     return openmeteo.weather_api(OPENMETEO_API_URL, params=params)
 
 def _get_weather_data():
-    """Fonction interne qui récupère les données météo de l'API"""
+    """Internal function that retrieves weather data from API"""
     params = {
         "latitude": random.uniform(-70, 70),
         "longitude": random.uniform(-180, 180),
@@ -47,16 +47,16 @@ def _get_weather_data():
     return hashlib.sha256(weather_str.encode()).hexdigest()
 
 def get_weather_entropy():
-    """Récupère des données météo comme source supplémentaire d'entropie"""
+    """Retrieves weather data as additional source of entropy"""
     try:
         return _get_weather_data()
     except Exception as e:
-        print(f"Erreur lors de la récupération des données météo: {e}")
+        print(f"Error retrieving weather data: {e}")
         fallback = f"weather_fallback_{time.time()}_{random.getrandbits(64)}"
         return hashlib.sha256(fallback.encode()).hexdigest()
 
 def get_static_entropy_pool():
-    """Crée un pool d'entropie de base avec des sources qui ne changent pas rapidement"""
+    """Creates a base entropy pool with sources that don't change rapidly"""
     weather_entropy = get_weather_entropy()
     return [
         str(os.urandom(32)),
@@ -71,7 +71,7 @@ def get_static_entropy_pool():
     ]
 
 def get_dynamic_entropy_pool():
-    """Récupère des données dynamiques pour ajouter de l'entropie"""
+    """Retrieves dynamic data to add entropy"""
     return [
         str(time.time()),
         hashlib.sha256(str(time.perf_counter()).encode()).hexdigest(),
@@ -88,7 +88,7 @@ def get_dynamic_entropy_pool():
     ]
 
 def generate_seed(base_pool=None):
-    """Génère une graine aléatoire en combinant différentes sources d'entropie"""
+    """Generates a random seed by combining different entropy sources"""
     entropy_sources = base_pool.copy() if base_pool else []
     entropy_sources.extend(get_dynamic_entropy_pool())
     random.shuffle(entropy_sources)
@@ -100,68 +100,68 @@ def generate_seed(base_pool=None):
     final_hash = hashlib.sha256(intermediate_hash).hexdigest()
     return int(final_hash, 16)
 
-def faire_tirage(base_pool=None):
-    """Génère un tirage avec N numéros et M étoiles en utilisant une graine aléatoire"""
+def make_draw(base_pool=None):
+    """Generates a draw with N numbers and M stars using a random seed"""
     seed = generate_seed(base_pool)
     random.seed(seed)
-    numeros = random.sample(range(1, MAX_NUMERO + 1), NOMBRE_NUMEROS)
-    etoiles = random.sample(range(1, MAX_ETOILE + 1), NOMBRE_ETOILES)
+    numbers = random.sample(range(1, MAX_NUMBER + 1), NUMBER_OF_NUMBERS)
+    stars = random.sample(range(1, MAX_STAR + 1), NUMBER_OF_STARS)
     return {
-        "graine": seed,
-        "numeros": sorted(numeros),
-        "etoiles": sorted(etoiles)
+        "seed": seed,
+        "numbers": sorted(numbers),
+        "stars": sorted(stars)
     }
 
-def generate_draws(num_tirages):
-    """Génère plusieurs tirages séquentiellement"""
+def generate_draws(num_draws):
+    """Generates multiple draws sequentially"""
     base_pool = get_static_entropy_pool()
-    bar = Bar('Progression', max=num_tirages, suffix='%(percent)d%%')
+    bar = Bar('Progress', max=num_draws, suffix='%(percent)d%%')
 
-    tirages = []
-    for _ in range(num_tirages):
-        tirages.append(faire_tirage(base_pool))
+    draws = []
+    for _ in range(num_draws):
+        draws.append(make_draw(base_pool))
         time.sleep(0.01)
         bar.next()
 
     bar.finish()
-    return tirages
+    return draws
 
-def afficher_tirage(tirage, indice=None, titre="TIRAGE"):
-    """Affiche un tirage de façon formatée"""
-    print(f"\n===== {titre} =====")
-    if indice is not None:
-        print(f"Tirage #{indice + 1}")
-    print(f"Numéros : {tirage['numeros']}")
-    print(f"Étoiles : {tirage['etoiles']}")
-    print(f"Graine utilisée : {tirage['graine']}")
+def display_draw(draw, index=None, title="DRAW"):
+    """Displays a draw in a formatted way"""
+    print(f"\n===== {title} =====")
+    if index is not None:
+        print(f"Draw #{index + 1}")
+    print(f"Numbers: {draw['numbers']}")
+    print(f"Stars: {draw['stars']}")
+    print(f"Seed used: {draw['seed']}")
 
-def afficher_tirages_supplementaires(tirages, tirages_affiches):
-    """Affiche des tirages aléatoires supplémentaires à la demande de l'utilisateur."""
-    while len(tirages_affiches) < len(tirages):
-        afficher_autre = input("\nVoulez-vous voir un autre tirage aléatoire? (o/n): ").lower().strip()
-        if afficher_autre not in ['o', 'oui', 'y', 'yes', '']:
+def display_additional_draws(draws, displayed_draws):
+    """Displays additional random draws at the user's request."""
+    while len(displayed_draws) < len(draws):
+        display_another = input("\nDo you want to see another random draw? (y/n): ").lower().strip()
+        if display_another not in ['o', 'oui', 'y', 'yes', '']:
             break
 
-        indices_disponibles = [i for i in range(len(tirages)) if i not in tirages_affiches]
-        if not indices_disponibles:
-            print("Tous les tirages ont déjà été affichés!")
+        available_indices = [i for i in range(len(draws)) if i not in displayed_draws]
+        if not available_indices:
+            print("All draws have already been displayed!")
             break
 
-        indice_nouveau = random.choice(indices_disponibles)
-        nouveau_tirage = tirages[indice_nouveau]
-        tirages_affiches.add(indice_nouveau)
+        new_index = random.choice(available_indices)
+        new_draw = draws[new_index]
+        displayed_draws.add(new_index)
 
-        afficher_tirage(nouveau_tirage, indice_nouveau, "AUTRE TIRAGE ALÉATOIRE")
+        display_draw(new_draw, new_index, "ANOTHER RANDOM DRAW")
 
 if __name__ == "__main__":
-    print(f"Génération de {NOMBRE_TIRAGE} tirages différents...")
-    tirages = generate_draws(NOMBRE_TIRAGE)
+    print(f"Generating {NUMBER_OF_DRAWS} different draws...")
+    draws = generate_draws(NUMBER_OF_DRAWS)
 
     base_pool = get_static_entropy_pool()
     random.seed(generate_seed(base_pool))
-    tirage_choisi = random.choice(tirages)
-    tirages_affiches = {tirages.index(tirage_choisi)}
+    chosen_draw = random.choice(draws)
+    displayed_draws = {draws.index(chosen_draw)}
 
-    afficher_tirage(tirage_choisi, titre="RÉSULTAT FINAL")
-    print("Tirage sélectionné parmi les", NOMBRE_TIRAGE, "générés")
-    afficher_tirages_supplementaires(tirages, tirages_affiches)
+    display_draw(chosen_draw, title="FINAL RESULT")
+    print("Draw selected from among the", NUMBER_OF_DRAWS, "generated")
+    display_additional_draws(draws, displayed_draws)
