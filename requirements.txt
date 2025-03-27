@@ -4,3 +4,4 @@ progress==1.6
 psutil==7.0.0
 requests-cache==1.2.1
 retry-requests==2.0.0
+numpy==2.2.4

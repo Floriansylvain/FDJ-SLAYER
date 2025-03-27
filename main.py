@@ -1,3 +1,7 @@
+"""
+Ce script génère des tirages aléatoires pour l'EuroMillions en utilisant des sources d'entropie variées.
+"""
+
 import os
 import time
 import hashlib
@@ -11,183 +15,153 @@ import threading
 import datetime
 import multiprocessing
 from progress.bar import Bar
-from concurrent.futures import ProcessPoolExecutor
 import openmeteo_requests
 import requests_cache
+import numpy as _
 from retry_requests import retry
+from constants import *
 
-def fetch_weather_entropy():
+def _fetch_weather_api(params):
+    """Internal function to make Open-Meteo API requests"""
+    cache_session = requests_cache.CachedSession('.cache', expire_after=60)
+    retry_session = retry(cache_session, retries=2, backoff_factor=0.2)
+    openmeteo = openmeteo_requests.Client(session=retry_session)
+    return openmeteo.weather_api(OPENMETEO_API_URL, params=params)
+
+def _get_weather_data():
+    """Fonction interne qui récupère les données météo de l'API"""
+    params = {
+        "latitude": random.uniform(-70, 70),
+        "longitude": random.uniform(-180, 180),
+        "hourly": random.sample(OPENMETEO_HOURLY_PARAMS, random.randint(3, 6)),
+        "timezone": "auto"
+    }
+
+    responses = _fetch_weather_api(params)
+    entropy_values = []
+    for i in range(len(params["hourly"])):
+        var_values = responses[0].Hourly().Variables(i).ValuesAsNumpy()
+        entropy_values.extend(var_values.tolist())
+
+    weather_str = "".join([str(v) for v in entropy_values])
+    return hashlib.sha256(weather_str.encode()).hexdigest()
+
+def get_weather_entropy():
     """Récupère des données météo comme source supplémentaire d'entropie"""
     try:
-        # Configuration du client API Open-Meteo avec cache et nouvelle tentative en cas d'erreur
-        cache_session = requests_cache.CachedSession('.cache', expire_after=60)  # Courte durée de cache
-        retry_session = retry(cache_session, retries=2, backoff_factor=0.2)  # Nouvelle tentative rapide
-        openmeteo = openmeteo_requests.Client(session=retry_session)
-
-        # Demande de données météo avec un délai d'expiration
-        url = "https://api.open-meteo.com/v1/forecast"
-        params = {
-            "latitude": 50.4,
-            "longitude": 1.83,
-            "hourly": ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", 
-                      "visibility", "precipitation", "cloud_cover"],
-            "timezone": "auto"
-        }
-
-        responses = openmeteo.weather_api(url, params=params)
-        response = responses[0]
-
-        # Extraction de toutes les valeurs numériques des prévisions horaires
-        entropy_values = []
-        hourly = response.Hourly()
-
-        # Traitement de chaque variable météorologique
-        for i in range(len(params["hourly"])):
-            var_values = hourly.Variables(i).ValuesAsNumpy()
-            entropy_values.extend(var_values.tolist())
-
-        # Création d'un hash de toutes les données météorologiques
-        weather_str = "".join([str(v) for v in entropy_values])
-        weather_hash = hashlib.sha256(weather_str.encode()).hexdigest()
-
-        return weather_hash
+        return _get_weather_data()
     except Exception as e:
-        # If anything fails, return a timestamp-based fallback
+        print(f"Erreur lors de la récupération des données météo: {e}")
         fallback = f"weather_fallback_{time.time()}_{random.getrandbits(64)}"
         return hashlib.sha256(fallback.encode()).hexdigest()
 
-def initialize_entropy_pool():
+def get_static_entropy_pool():
     """Crée un pool d'entropie de base avec des sources qui ne changent pas rapidement"""
-    weather_entropy = fetch_weather_entropy()
-
+    weather_entropy = get_weather_entropy()
     return [
-        str(os.urandom(32)),  # 32 octets d'aléa du système
-        str(secrets.token_bytes(32)),  # Autre source cryptographique
-        socket.gethostname(),  # Nom de l'hôte
+        str(os.urandom(32)),
+        str(secrets.token_bytes(32)),
+        socket.gethostname(),
         str(platform.system_alias(platform.system(), platform.release(), platform.version())),
-        str(uuid.getnode()),  # Adresse MAC
-        str(multiprocessing.cpu_count()),  # Nombre de CPU
-        "".join([str(v) for v in psutil.disk_partitions()]),  # Configuration des disques
-        str(hash(frozenset(os.environ.items()))),  # Variables d'environnement,
-        weather_entropy, # Données météorologiques
+        str(uuid.getnode()),
+        str(multiprocessing.cpu_count()),
+        "".join([str(v) for v in psutil.disk_partitions()]),
+        str(hash(frozenset(os.environ.items()))),
+        weather_entropy,
+    ]
+
+def get_dynamic_entropy_pool():
+    """Récupère des données dynamiques pour ajouter de l'entropie"""
+    return [
+        str(time.time()),
+        hashlib.sha256(str(time.perf_counter()).encode()).hexdigest(),
+        str(os.getpid()),
+        str(psutil.cpu_percent(interval=0.01)),
+        str(psutil.virtual_memory().percent),
+        str(psutil.disk_usage('/').percent),
+        str(random.getrandbits(256)),
+        str(datetime.datetime.now().microsecond),
+        str(threading.active_count()),
+        str(sum(psutil.cpu_times())),
+        str(psutil.net_io_counters().bytes_sent if hasattr(psutil, 'net_io_counters') else 0),
+        str(id({})),
     ]
 
 def generate_seed(base_pool=None):
     """Génère une graine aléatoire en combinant différentes sources d'entropie"""
-    # Utiliser le pool de base si fourni, sinon créer des sources complètes
-    if base_pool:
-        entropy_sources = base_pool.copy()
-    else:
-        entropy_sources = []
-
-    # Ajouter les sources dynamiques qui changent à chaque appel
-    dynamic_sources = [
-        str(time.time()),  # Timestamp actuel
-        hashlib.sha256(str(time.perf_counter()).encode()).hexdigest(),  # Timer haute précision hashé
-        str(os.getpid()),  # ID du processus
-        str(psutil.cpu_percent(interval=0.01)),  # Utilisation CPU (réduit à 0.01)
-        str(psutil.virtual_memory().percent),  # Utilisation mémoire
-        str(psutil.disk_usage('/').percent),  # Utilisation disque
-        str(random.getrandbits(256)),  # Bits aléatoires du générateur par défaut
-        str(datetime.datetime.now().microsecond),  # Microsecondes actuelles
-        str(threading.active_count()),  # Nombre de threads actifs
-        str(sum(psutil.cpu_times())),  # Temps CPU cumulés
-        str(psutil.net_io_counters().bytes_sent if hasattr(psutil, 'net_io_counters') else 0),  # Trafic réseau
-        str(id({})),  # Adresse mémoire d'un nouvel objet
-    ]
-
-    entropy_sources.extend(dynamic_sources)
-
+    entropy_sources = base_pool.copy() if base_pool else []
+    entropy_sources.extend(get_dynamic_entropy_pool())
     random.shuffle(entropy_sources)
 
-    # Concaténer et hacher plusieurs fois avec différents algorithmes
     entropy_str = "".join(entropy_sources)
     intermediate_hash = hashlib.sha512(entropy_str.encode()).digest()
     intermediate_hash = hashlib.blake2b(intermediate_hash).digest()
 
-    # Utiliser un hachage final pour obtenir un entier
     final_hash = hashlib.sha256(intermediate_hash).hexdigest()
-    seed = int(final_hash, 16)
-
-    return seed
+    return int(final_hash, 16)
 
 def faire_tirage(base_pool=None):
-    """Génère un tirage avec 5 numéros et 2 étoiles en utilisant une graine aléatoire"""
-    # Génération de nouveaux nombres avec une nouvelle graine
+    """Génère un tirage avec N numéros et M étoiles en utilisant une graine aléatoire"""
     seed = generate_seed(base_pool)
     random.seed(seed)
-    numeros = random.sample(range(1, 51), 5)
-    etoiles = random.sample(range(1, 13), 2)
+    numeros = random.sample(range(1, MAX_NUMERO + 1), NOMBRE_NUMEROS)
+    etoiles = random.sample(range(1, MAX_ETOILE + 1), NOMBRE_ETOILES)
     return {
         "graine": seed,
         "numeros": sorted(numeros),
         "etoiles": sorted(etoiles)
     }
 
-def worker_process(num_tirages, base_pool):
-    """Fonction exécutée par chaque processus travailleur"""
-    local_tirages = []
-    for _ in range(num_tirages):
-        local_tirages.append(faire_tirage(base_pool))
-    return local_tirages
-
 def generate_draws(num_tirages):
-    """Génère plusieurs tirages en parallèle"""
-    # Initialiser le pool d'entropie de base
-    base_pool = initialize_entropy_pool()
-
-    # Déterminer le nombre optimal de processus
-    num_processes = min(os.cpu_count() or 4, 4)  # Limiter à un nombre raisonnable
-
-    # Répartir le travail entre les processus
-    tirages_par_processus = num_tirages // num_processes
-    remainder = num_tirages % num_processes
-
-    # Préparer les tâches pour chaque processus
-    tasks = []
-    for i in range(num_processes):
-        count = tirages_par_processus + (1 if i < remainder else 0)
-        if count > 0:
-            tasks.append((count, base_pool))
-
+    """Génère plusieurs tirages séquentiellement"""
+    base_pool = get_static_entropy_pool()
     bar = Bar('Progression', max=num_tirages, suffix='%(percent)d%%')
 
-    # Exécuter les tâches en parallèle
     tirages = []
-    with ProcessPoolExecutor(max_workers=num_processes) as executor:
-        futures = [executor.submit(worker_process, count, bp) for count, bp in tasks]
-        for future in futures:
-            batch = future.result()
-            tirages.extend(batch)
-            bar.next(len(batch))
+    for _ in range(num_tirages):
+        tirages.append(faire_tirage(base_pool))
+        time.sleep(0.01)
+        bar.next()
 
     bar.finish()
     return tirages
 
-if __name__ == "__main__":
-    print("Génération de 100 tirages différents...")
-    tirages = generate_draws(100)
+def afficher_tirage(tirage, indice=None, titre="TIRAGE"):
+    """Affiche un tirage de façon formatée"""
+    print(f"\n===== {titre} =====")
+    if indice is not None:
+        print(f"Tirage #{indice + 1}")
+    print(f"Numéros : {tirage['numeros']}")
+    print(f"Étoiles : {tirage['etoiles']}")
+    print(f"Graine utilisée : {tirage['graine']}")
 
-    # Mélange final pour le choix du tirage avec une nouvelle graine
-    base_pool = initialize_entropy_pool()
+def afficher_tirages_supplementaires(tirages, tirages_affiches):
+    """Affiche des tirages aléatoires supplémentaires à la demande de l'utilisateur."""
+    while len(tirages_affiches) < len(tirages):
+        afficher_autre = input("\nVoulez-vous voir un autre tirage aléatoire? (o/n): ").lower().strip()
+        if afficher_autre not in ['o', 'oui', 'y', 'yes', '']:
+            break
+
+        indices_disponibles = [i for i in range(len(tirages)) if i not in tirages_affiches]
+        if not indices_disponibles:
+            print("Tous les tirages ont déjà été affichés!")
+            break
+
+        indice_nouveau = random.choice(indices_disponibles)
+        nouveau_tirage = tirages[indice_nouveau]
+        tirages_affiches.add(indice_nouveau)
+
+        afficher_tirage(nouveau_tirage, indice_nouveau, "AUTRE TIRAGE ALÉATOIRE")
+
+if __name__ == "__main__":
+    print(f"Génération de {NOMBRE_TIRAGE} tirages différents...")
+    tirages = generate_draws(NOMBRE_TIRAGE)
+
+    base_pool = get_static_entropy_pool()
     random.seed(generate_seed(base_pool))
     tirage_choisi = random.choice(tirages)
+    tirages_affiches = {tirages.index(tirage_choisi)}
 
-    print("\n===== RÉSULTAT FINAL =====")
-    print("Tirage sélectionné parmi les 100 générés")
-    print("Graine utilisée :", tirage_choisi["graine"])
-    print("Numéros :", tirage_choisi["numeros"])
-    print("Étoiles :", tirage_choisi["etoiles"])
-
-    # Demander à l'utilisateur s'il souhaite afficher tous les tirages
-    afficher_tous = input("\nVoulez-vous afficher tous les tirages générés? (o/n): ").lower().strip()
-    if afficher_tous in ['o', 'oui', 'y', 'yes']:
-        print("\n===== TOUS LES TIRAGES =====")
-        for i, tirage in enumerate(tirages, 1):
-            print(f"Tirage {i}:")
-            print(f"  Numéros: {tirage['numeros']}")
-            print(f"  Étoiles: {tirage['etoiles']}")
-            print(f"  Graine: {tirage['graine']}")
-            print("-" * 30)
-
-    input("\nAppuyez sur Entrée pour quitter...")
+    afficher_tirage(tirage_choisi, titre="RÉSULTAT FINAL")
+    print("Tirage sélectionné parmi les", NOMBRE_TIRAGE, "générés")
+    afficher_tirages_supplementaires(tirages, tirages_affiches)
