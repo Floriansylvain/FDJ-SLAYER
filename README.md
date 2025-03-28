@@ -13,8 +13,16 @@ This project aims to create truly random EuroMillions lottery draws by combining
   - Hardware and system information
   - OS random data and cryptographic functions
   - CPU/memory usage and other dynamic metrics
-- Configurable number of lottery draws
-- Progress bar visualization during draw generation (yes, it's a huge feature :p)
+- Fully configurable lottery draws
+- Statistical analysis of generated draws:
+  - Chi-square testing for randomness verification
+  - Frequency distribution analysis of numbers and stars
+  - Calculation of standard deviation and variation percentages
+  - P-value assessment of randomness quality
+- Visualization capabilities:
+  - Bar charts showing number/star distributions
+  - Comparison with expected frequencies
+  - Interactive display of statistical results
 
 ## Installation
 
@@ -100,6 +108,12 @@ Edit the constants in ``src/constants.py`` to modify:
 | [psutil](https://pypi.org/project/psutil/)                         | System metrics collection        |
 | [requests-cache](https://pypi.org/project/requests-cache/)         | Caching API requests             |
 | [numpy](https://pypi.org/project/numpy/)                           | `ValuesAsNumpy()` on API results |
+| [retry-requests](https://pypi.org/project/retry-requests/)         | Retry failed API requests        |
+| [pytest](https://pypi.org/project/pytest/)                         | Unit testing framework           |
+| [pytest-cov](https://pypi.org/project/pytest-cov/)                 | Test coverage reporting          |
+| [pytest-mock](https://pypi.org/project/pytest-mock/)               | Mocking for tests                |
+| [matplotlib](https://pypi.org/project/matplotlib/)                 | Data visualization               |
+| [scipy](https://pypi.org/project/scipy/)                           | Statistical calculations         |
 
 ## License
 
