@@ -153,8 +153,7 @@ class StatsVisualization:
             results: Dictionary containing analysis results
             value_type: Either "number" or "star" to specify which analysis to format
         """
-        title_suffix = "NUMBERS ANALYSIS" if value_type == "number" else "STARS ANALYSIS"
-        title = f"MAIN {title_suffix}" if value_type == "number" else f"STAR {title_suffix}"
+        title = "MAIN ANALYSIS" if value_type == "number" else "STAR ANALYSIS"
         min_key = f"min_{value_type}"
         max_key = f"max_{value_type}"
         return f"\n{title}:" \
