@@ -5,9 +5,9 @@ This script generates random draws for EuroMillions using various entropy source
 import random
 import numpy as _
 
-from draw import Draw
-from weather import Weather
-from constants import NUMBER_OF_DRAWS
+from fdj_slayer.draw import Draw
+from fdj_slayer.weather import Weather
+from fdj_slayer.constants import NUMBER_OF_DRAWS
 
 
 def main():

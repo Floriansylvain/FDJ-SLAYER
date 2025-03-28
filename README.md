@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 Run the main script to generate lottery draws:
 ```bash
-python src/main.py
+python main.py
 ```
 
 The program will:
@@ -60,9 +60,27 @@ The application uses a combination of entropy sources to generate truly random l
 
 All sources are combined, hashed, and processed to create seeds for the random number generator that selects the lottery numbers.
 
+## Testing
+
+Unit tests are included to verify the functionality of all major components.
+
+### Running Tests
+
+Run the test suite with pytest:
+
+```bash
+python -m pytest test/
+```
+
+For a coverage report:
+
+```bash
+python -m pytest --cov-report term --cov=./fdj_slayer test/
+```
+
 ## Configuration
 
-Edit the constants in ``scr/constants.py`` to modify:
+Edit the constants in ``src/constants.py`` to modify:
 
 | Parameter              | Description                                           |
 |------------------------|-------------------------------------------------------|

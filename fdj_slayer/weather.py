@@ -9,7 +9,7 @@ import openmeteo_requests
 import requests_cache
 from retry_requests import retry
 
-from constants import OPENMETEO_API_URL, OPENMETEO_HOURLY_PARAMS
+from .constants import OPENMETEO_API_URL, OPENMETEO_HOURLY_PARAMS
 
 
 class Weather:

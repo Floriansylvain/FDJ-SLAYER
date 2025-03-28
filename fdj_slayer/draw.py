@@ -16,7 +16,7 @@ import multiprocessing
 import psutil
 from progress.bar import Bar
 
-from constants import MAX_NUMBER, MAX_STAR, NUMBER_OF_NUMBERS, NUMBER_OF_STARS
+from .constants import MAX_NUMBER, MAX_STAR, NUMBER_OF_NUMBERS, NUMBER_OF_STARS
 
 
 class Draw:
