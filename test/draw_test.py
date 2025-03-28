@@ -29,8 +29,8 @@ class TestDraw(unittest.TestCase):
 
     def test_get_dynamic_entropy_pool(self):
         """Test that dynamic entropy pool returns different values"""
-        pool1 = self.draw.get_dynamic_entropy_pool()
-        pool2 = self.draw.get_dynamic_entropy_pool()
+        pool1 = self.draw._get_dynamic_entropy_pool()
+        pool2 = self.draw._get_dynamic_entropy_pool()
 
         self.assertIsInstance(pool1, list)
         self.assertIsInstance(pool2, list)
@@ -53,7 +53,7 @@ class TestDraw(unittest.TestCase):
             [5, 10]
         ]
 
-        draw = self.draw.make_draw(["test_entropy"])
+        draw = self.draw._make_draw(["test_entropy"])
 
         self.assertIn("seed", draw)
         self.assertIn("numbers", draw)
@@ -68,7 +68,7 @@ class TestDraw(unittest.TestCase):
         """Test generation of multiple draws"""
         mock_bar_instance = mock_bar.return_value
 
-        self.draw.make_draw = MagicMock(
+        self.draw._make_draw = MagicMock(
             side_effect=[{"numbers": [1, 2, 3, 4, 5],
                           "stars": [1, 2], "seed": i} for i in range(3)]
         )

@@ -25,23 +25,7 @@ class Draw:
     def __init__(self, weather_service):
         self.weather_service = weather_service
 
-    def get_static_entropy_pool(self):
-        """Creates a base entropy pool with sources that don't change rapidly"""
-        weather_entropy = self.weather_service.get_weather_entropy()
-        return [
-            str(os.urandom(32)),
-            str(secrets.token_bytes(32)),
-            socket.gethostname(),
-            str(platform.system_alias(platform.system(),
-                platform.release(), platform.version())),
-            str(uuid.getnode()),
-            str(multiprocessing.cpu_count()),
-            "".join([str(v) for v in psutil.disk_partitions()]),
-            str(hash(frozenset(os.environ.items()))),
-            weather_entropy,
-        ]
-
-    def get_dynamic_entropy_pool(self):
+    def _get_dynamic_entropy_pool(self):
         """Retrieves dynamic data to add entropy"""
         return [
             str(time.time()),
@@ -59,20 +43,7 @@ class Draw:
             str(id({})),
         ]
 
-    def generate_seed(self, base_pool=None):
-        """Generates a random seed by combining different entropy sources"""
-        entropy_sources = base_pool.copy() if base_pool else []
-        entropy_sources.extend(self.get_dynamic_entropy_pool())
-        random.shuffle(entropy_sources)
-
-        entropy_str = "".join(entropy_sources)
-        intermediate_hash = hashlib.sha512(entropy_str.encode()).digest()
-        intermediate_hash = hashlib.blake2b(intermediate_hash).digest()
-
-        final_hash = hashlib.sha256(intermediate_hash).hexdigest()
-        return int(final_hash, 16)
-
-    def make_draw(self, base_pool=None):
+    def _make_draw(self, base_pool=None):
         """Generates a draw with N numbers and M stars using a random seed"""
         seed = self.generate_seed(base_pool)
         random.seed(seed)
@@ -84,6 +55,35 @@ class Draw:
             "stars": sorted(stars)
         }
 
+    def get_static_entropy_pool(self):
+        """Creates a base entropy pool with sources that don't change rapidly"""
+        weather_entropy = self.weather_service.get_weather_entropy()
+        return [
+            str(os.urandom(32)),
+            str(secrets.token_bytes(32)),
+            socket.gethostname(),
+            str(platform.system_alias(platform.system(),
+                platform.release(), platform.version())),
+            str(uuid.getnode()),
+            str(multiprocessing.cpu_count()),
+            "".join([str(v) for v in psutil.disk_partitions()]),
+            str(hash(frozenset(os.environ.items()))),
+            weather_entropy,
+        ]
+
+    def generate_seed(self, base_pool=None):
+        """Generates a random seed by combining different entropy sources"""
+        entropy_sources = base_pool.copy() if base_pool else []
+        entropy_sources.extend(self._get_dynamic_entropy_pool())
+        random.shuffle(entropy_sources)
+
+        entropy_str = "".join(entropy_sources)
+        intermediate_hash = hashlib.sha512(entropy_str.encode()).digest()
+        intermediate_hash = hashlib.blake2b(intermediate_hash).digest()
+
+        final_hash = hashlib.sha256(intermediate_hash).hexdigest()
+        return int(final_hash, 16)
+
     def generate_draws(self, num_draws):
         """Generates multiple draws sequentially"""
         base_pool = self.get_static_entropy_pool()
@@ -91,7 +91,7 @@ class Draw:
 
         draws = []
         for _ in range(num_draws):
-            draws.append(self.make_draw(base_pool))
+            draws.append(self._make_draw(base_pool))
             time.sleep(0.01)
             progress_bar.next()
 
