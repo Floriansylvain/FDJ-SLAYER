@@ -82,7 +82,7 @@ Edit the constants in ``scr/constants.py`` to modify:
 | [psutil](https://pypi.org/project/psutil/)                         | System metrics collection        |
 | [requests-cache](https://pypi.org/project/requests-cache/)         | Caching API requests             |
 | [numpy](https://pypi.org/project/numpy/)                           | `ValuesAsNumpy()` on API results |
-Markdown Table Formatter
+
 ## License
 
-TODO: Add a license
+[FDJ-SLAYER](https://github.com/Floriansylvain/FDJ-SLAYER) © 2025 by [Florian Sylvain](https://github.com/Floriansylvain) is licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
