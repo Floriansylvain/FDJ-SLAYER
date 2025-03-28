@@ -1,31 +1,45 @@
 """
-This script generates random draws for EuroMillions using various entropy sources.
+Main entry point for the FDJ Slayer application.
 """
 
 import random
-import numpy as _
-
 from fdj_slayer.draw import Draw
+from fdj_slayer.stats import StatsAnalysis, StatsVisualization
 from fdj_slayer.weather import Weather
-from fdj_slayer.constants import NUMBER_OF_DRAWS
+from fdj_slayer.constants import MAX_NUMBER, MAX_STAR, NUMBER_OF_NUMBERS, NUMBER_OF_STARS
 
 
 def main():
-    """Main function that orchestrates the draw generation process"""
+    """Main entry point for the application"""
     weather = Weather()
-    draw_generator = Draw(weather)
+    stats_analyzer = StatsAnalysis(
+        MAX_NUMBER, MAX_STAR, NUMBER_OF_NUMBERS, NUMBER_OF_STARS)
+    stats_visualizer = StatsVisualization(MAX_NUMBER, MAX_STAR)
+    draw = Draw(weather)
 
-    print(f"Generating {NUMBER_OF_DRAWS} different draws...")
-    draws = draw_generator.generate_draws(NUMBER_OF_DRAWS)
+    print("\nWelcome to FDJ SLAYER - Your EuroMillions Number Generator!")
 
-    base_pool = draw_generator.get_static_entropy_pool()
-    random.seed(draw_generator.generate_seed(base_pool))
-    chosen_draw = random.choice(draws)
-    displayed_draws = {draws.index(chosen_draw)}
+    try:
+        num_draws = int(input("\nHow many draws would you like to generate? "))
+    except ValueError:
+        num_draws = 5
+        print(f"Invalid input, defaulting to {num_draws} draws.")
 
-    draw_generator.display_draw(chosen_draw, title="FINAL RESULT")
-    print("Draw selected from among the", NUMBER_OF_DRAWS, "generated")
-    draw_generator.display_additional_draws(draws, displayed_draws)
+    print("\nGenerating random draws with enhanced entropy...")
+    draws = draw.generate_draws(num_draws)
+
+    if draws:
+        displayed = set()
+        random_index = random.randint(0, len(draws) - 1)
+        draw.display_draw(
+            draws[random_index], random_index, "RANDOMLY SELECTED DRAW")
+        displayed.add(random_index)
+
+        draw.display_additional_draws(draws, displayed)
+
+        print("\nAnalyzing randomness of the generated draws...")
+        analysis = stats_analyzer.analyze_randomness(draws)
+        stats_visualizer.display_randomness_analysis(analysis)
 
 
 if __name__ == "__main__":
